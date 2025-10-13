@@ -305,6 +305,8 @@ class MongoExplorerApp(tk.Tk):
         self.current_db_name = None
         self.current_collection_name = None
         self.current_page = 0
+        self.sort_column = None
+        self.sort_direction = 1  # 1 = ascendente, -1 = descendente
 
         # Configuración del estilo
         self.style = ttk.Style()
@@ -355,6 +357,8 @@ class MongoExplorerApp(tk.Tk):
         self.current_db_name = db_name
         self.current_collection_name = collection_name
         self.current_page = 0
+        self.sort_column = None
+        self.sort_direction = 1
         self.load_documents()
 
     def apply_filter(self):
@@ -376,6 +380,19 @@ class MongoExplorerApp(tk.Tk):
             self.load_documents()
         else:
             messagebox.showinfo("Paginación", "Ya estás en la primera página.")
+
+    def toggle_sort(self, column):
+        """Alternar ordenación de una columna."""
+        if self.sort_column == column:
+            # Si es la misma columna, cambiar dirección
+            self.sort_direction = -1 if self.sort_direction == 1 else 1
+        else:
+            # Nueva columna, empezar con ascendente
+            self.sort_column = column
+            self.sort_direction = 1
+        
+        self.current_page = 0
+        self.load_documents()
 
     def _get_clean_id(self, doc_id_bson):
         if isinstance(doc_id_bson, ObjectId):
@@ -420,6 +437,11 @@ class MongoExplorerApp(tk.Tk):
 
         try:
             cursor = collection.find(query_filter).skip(skip).limit(limit)
+            
+            # Aplicar ordenación si hay una columna seleccionada
+            if self.sort_column:
+                cursor = cursor.sort(self.sort_column, self.sort_direction)
+            
             documents = list(cursor)
 
             for item in self.data_panel.data_tree.get_children():
@@ -441,7 +463,13 @@ class MongoExplorerApp(tk.Tk):
             self.data_panel.data_tree.config(columns=sorted_keys)
             
             for col in sorted_keys:
-                self.data_panel.data_tree.heading(col, text=col, anchor='w')
+                # Determinar el texto del encabezado con indicador de ordenación
+                header_text = col
+                if self.sort_column == col:
+                    header_text = f"{col} {'↑' if self.sort_direction == 1 else '↓'}"
+                
+                self.data_panel.data_tree.heading(col, text=header_text, anchor='w', 
+                                                 command=lambda c=col: self.toggle_sort(c))
                 self.data_panel.data_tree.column(col, width=MAX_COLUMN_WIDTH, anchor='w', stretch=True, minwidth=60)
 
             for i, doc in enumerate(documents):
