@@ -17,19 +17,19 @@ class StyleConfig:
     
     ROOT_BG_COLOR = '#e6f0f5'
     BG_COLOR = '#ffffff'
-    PRIMARY_COLOR = '#4a90e2'
-    PRIMARY_HOVER = '#3a7bd5'
-    SECONDARY_COLOR = '#aeb6bf'
-    SECONDARY_HOVER = '#95a5a6'
-    FG_COLOR = '#34495e'
-    TABLE_HEADER_BG = '#f5f8fa'
-    TABLE_ALT_ROW = '#fcfdff'
-    TABLE_HOVER = '#e6f3ff'  # Color para el efecto hover en filas
-    TABLE_SEPARATOR = '#d3dce6'  # Color para separadores entre celdas y líneas horizontales
+    PRIMARY_COLOR = '#60a5fa'  # Azul más claro y moderno (blue-400)
+    PRIMARY_HOVER = '#3b82f6'  # Azul hover (blue-500)
+    SECONDARY_COLOR = '#94a3b8'  # Gris slate moderno
+    SECONDARY_HOVER = '#64748b'  # Gris slate hover
+    FG_COLOR = '#1e293b'  # Texto oscuro moderno
+    TABLE_HEADER_BG = '#f1f5f9'
+    TABLE_ALT_ROW = '#f8fafc'
+    TABLE_HOVER = '#dbeafe'  # Azul muy claro para hover (blue-100)
+    TABLE_SEPARATOR = '#e2e8f0'
 
     @staticmethod
     def setup_modern_style(style_obj):
-        style_obj.theme_use('alt')  # Tema estándar
+        style_obj.theme_use('alt')
         style_obj.configure('.', background=StyleConfig.BG_COLOR, foreground=StyleConfig.FG_COLOR, font=('Segoe UI', 10))
         style_obj.map('.', background=[('disabled', StyleConfig.ROOT_BG_COLOR)]) 
 
@@ -39,9 +39,8 @@ class StyleConfig:
                            relief='flat',
                            background=StyleConfig.SECONDARY_COLOR,
                            foreground='white',
-                           borderwidth=1,
-                           highlightthickness=1,
-                           highlightcolor=StyleConfig.SECONDARY_COLOR)
+                           borderwidth=0,
+                           highlightthickness=0)
         style_obj.map('TButton',
                       background=[('active', StyleConfig.SECONDARY_HOVER), ('!disabled', StyleConfig.SECONDARY_COLOR)],
                       foreground=[('active', 'white'), ('!disabled', 'white')])
@@ -49,9 +48,8 @@ class StyleConfig:
         style_obj.configure('Primary.TButton', 
                            background=StyleConfig.PRIMARY_COLOR,
                            foreground='white',
-                           borderwidth=1,
-                           highlightthickness=1,
-                           highlightcolor=StyleConfig.PRIMARY_COLOR)
+                           borderwidth=0,
+                           highlightthickness=0)
         style_obj.map('Primary.TButton',
                       background=[('active', StyleConfig.PRIMARY_HOVER), ('!disabled', StyleConfig.PRIMARY_COLOR)],
                       relief=[('active', 'flat'), ('!disabled', 'flat')])
@@ -190,7 +188,7 @@ class DataPanel(ttk.Frame):
         ttk.Label(filter_frame, text="Filtro JSON (ej. {\"id.type\": \"Device\"}):").pack(side='left', padx=5)
         self.filter_entry = ttk.Entry(filter_frame, textvariable=self.app.current_filter, width=50, style='TEntry')
         self.filter_entry.pack(side='left', fill='x', expand=True, padx=5)
-        ttk.Button(filter_frame, text="Aplicar Filtro", command=self.app.apply_filter, style='Primary.TButton').pack(side='left', padx=5)
+        ttk.Button(filter_frame, text="⚡ Aplicar Filtro", command=self.app.apply_filter, style='Primary.TButton').pack(side='left', padx=5)
 
         self.data_label = ttk.Label(self, text="Selecciona una colección para ver los datos.", style='Title.TLabel')
         self.data_label.pack(fill='x', padx=10, pady=5)
@@ -198,7 +196,6 @@ class DataPanel(ttk.Frame):
         table_frame = ttk.Frame(self, style='TFrame')
         table_frame.pack(fill='both', expand=True, padx=10, pady=5)
 
-        # Crear un Canvas para superponer líneas horizontales
         self.canvas = tk.Canvas(table_frame, background='white', highlightthickness=0)
         self.canvas.pack(side='left', fill='both', expand=True)
 
@@ -230,14 +227,14 @@ class DataPanel(ttk.Frame):
         self.page_size_combo.pack(side='left', padx=5)
         self.page_size_combo.bind('<<ComboboxSelected>>', lambda e: self.app.apply_page_size())
 
-        ttk.Button(op_frame, text="Ver/Editar Documento", command=self.app.open_document_op, style='Primary.TButton').pack(side='left', padx=10)
-        ttk.Button(op_frame, text="Eliminar Documento", command=self._delete_document_wrapper, style='TButton').pack(side='left', padx=10)
+        ttk.Button(op_frame, text="✎ Ver/Editar", command=self.app.open_document_op, style='Primary.TButton').pack(side='left', padx=10)
+        ttk.Button(op_frame, text="✖ Eliminar", command=self._delete_document_wrapper, style='TButton').pack(side='left', padx=10)
 
         self.page_info_label = ttk.Label(op_frame, textvariable=self.app.page_info_text)
         self.page_info_label.pack(side='right', padx=5)
 
-        ttk.Button(op_frame, text="Página Siguiente >>", command=lambda: self.app.change_page(1)).pack(side='right', padx=5)
-        ttk.Button(op_frame, text="<< Página Anterior", command=lambda: self.app.change_page(-1)).pack(side='right', padx=5)
+        ttk.Button(op_frame, text="►", command=lambda: self.app.change_page(1)).pack(side='right', padx=5)
+        ttk.Button(op_frame, text="◄", command=lambda: self.app.change_page(-1)).pack(side='right', padx=5)
 
         self.last_hovered = None
         self.horizontal_lines = []
@@ -253,13 +250,13 @@ class DataPanel(ttk.Frame):
             self.canvas.delete(line)
         self.horizontal_lines = []
 
-        row_height = 30  # Altura de fila definida en StyleConfig
+        row_height = 30
         num_rows = len(self.data_tree.get_children())
         if num_rows == 0:
             return
 
         canvas_width = self.canvas.winfo_width()
-        for i in range(num_rows + 1):  # +1 para la línea inferior de la última fila
+        for i in range(num_rows + 1):
             y = i * row_height
             line = self.canvas.create_line(0, y, canvas_width, y, fill=StyleConfig.TABLE_SEPARATOR, width=1)
             self.horizontal_lines.append(line)
@@ -294,7 +291,7 @@ class DataPanel(ttk.Frame):
 class MongoExplorerApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Mongo Explorer (K8s Ready) - Structured UI")
+        self.title("Mongo Explorer (K8s Ready) - Modern UI")
         self.geometry("1200x800")
         self.minsize(900, 600)
 
@@ -323,7 +320,7 @@ class MongoExplorerApp(tk.Tk):
         ttk.Label(connection_frame, text="URI de MongoDB:").pack(side='left', padx=5)
         self.uri_entry = ttk.Entry(connection_frame, textvariable=self.mongo_uri, width=80, style='TEntry')
         self.uri_entry.pack(side='left', fill='x', expand=True, padx=5)
-        ttk.Button(connection_frame, text="Conectar", command=self.connect_mongo, style='Primary.TButton').pack(side='left', padx=5)
+        ttk.Button(connection_frame, text="⚡ Conectar", command=self.connect_mongo, style='Primary.TButton').pack(side='left', padx=5)
 
         main_paned_window = ttk.PanedWindow(self, orient=tk.HORIZONTAL, style='TPanedwindow')
         main_paned_window.pack(fill='both', expand=True, padx=10, pady=10)
@@ -541,7 +538,7 @@ class MongoExplorerApp(tk.Tk):
                 content = text_widget.get('1.0', tk.END)
                 self.clipboard_clear()
                 self.clipboard_append(content)
-                viewer.title(f"COPIADO - Editar '{col_name}'")
+                viewer.title(f"✓ COPIADO - Editar '{col_name}'")
                 self.after(2000, lambda: viewer.title(f"Editar '{col_name}' de ID: {self._get_clean_id(full_id_bson_str)}"))
 
             def save_cell_edition():
@@ -572,9 +569,9 @@ class MongoExplorerApp(tk.Tk):
                 except Exception as e:
                     messagebox.showerror("Error de Guardado", f"Fallo al guardar en la base de datos: {e}")
 
-            ttk.Button(button_frame, text="Copiar Contenido", command=copy_content, style='TButton').pack(side='left', padx=5)
-            ttk.Button(button_frame, text="Guardar Edición de Celda", command=save_cell_edition, style='Primary.TButton').pack(side='left', padx=15)
-            ttk.Button(button_frame, text="Cerrar", command=viewer.destroy, style='TButton').pack(side='right', padx=5)
+            ttk.Button(button_frame, text="⎘ Copiar", command=copy_content, style='TButton').pack(side='left', padx=5)
+            ttk.Button(button_frame, text="✓ Guardar", command=save_cell_edition, style='Primary.TButton').pack(side='left', padx=15)
+            ttk.Button(button_frame, text="✖ Cerrar", command=viewer.destroy, style='TButton').pack(side='right', padx=5)
 
         except Exception as e:
             messagebox.showerror("Error de Visualización", f"Fallo en la visualización/edición de la celda: {e}")
@@ -658,7 +655,11 @@ class MongoExplorerApp(tk.Tk):
                 except Exception as e:
                     messagebox.showerror("Error de Guardado", f"Error al guardar o parsear JSON: {e}")
 
-            ttk.Button(editor, text="Guardar Documento Completo", command=save_document, style='Primary.TButton').pack(pady=10)
+            button_frame = ttk.Frame(editor, padding="10", style='TFrame')
+            button_frame.pack(fill='x', expand=False)
+
+            ttk.Button(button_frame, text="✓ Guardar Documento", command=save_document, style='Primary.TButton').pack(side='left', padx=5)
+            ttk.Button(button_frame, text="✖ Cerrar", command=editor.destroy, style='TButton').pack(side='right', padx=5)
 
         except Exception as e:
             messagebox.showerror("Error de Documento (General)", f"Fallo al obtener/procesar el documento: {e}")
