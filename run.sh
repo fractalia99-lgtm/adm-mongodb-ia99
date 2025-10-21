@@ -4,23 +4,42 @@
 # Script de Automatización para Mongo Explorer
 # Autor: Gemini (Google)
 #
-# Uso: ./iniciar_explorer.sh /ruta/a/tu/kubeconfig/archivo.yaml
+# Uso: ./run.sh -k <ruta/a/kubeconfig.yaml>
+#
+# Argumentos:
+#   -k <ruta/a/kubeconfig.yaml> : Ruta COMPLETA al archivo kubeconfig (Obligatorio).
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# 1. VERIFICAR PARÁMETROS DE ENTRADA
+# 1. PARSEAR ARGUMENTOS DE ENTRADA
 # ------------------------------------------------------------------------------
 
-# Verificar si se proporcionó un argumento (la ruta del kubeconfig)
-if [ -z "$1" ]; then
-    echo "ERROR: Debe proporcionar la ruta COMPLETA al archivo kubeconfig."
-    echo "Uso: $0 /ruta/al/archivo/kubeconfig.yaml"
+KUBECONFIG_PATH=""
+
+# Usar getopts para parsear la bandera -k
+while getopts "k:" opt; do
+  case $opt in
+    k)
+      KUBECONFIG_PATH="$OPTARG"
+      ;;
+    \?)
+      echo "Uso: $0 -k /ruta/al/archivo/kubeconfig.yaml" >&2
+      exit 1
+      ;;
+  esac
+done
+
+# Verificar si la ruta del kubeconfig es obligatoria y fue proporcionada
+if [ -z "$KUBECONFIG_PATH" ]; then
+    echo "ERROR: Debe proporcionar la ruta COMPLETA al archivo kubeconfig usando -k."
+    echo "Uso: $0 -k /ruta/al/archivo/kubeconfig.yaml"
     exit 1
 fi
 
-KUBECONFIG_PATH="$1"
+
 PYTHON_SCRIPT="mongoexplorer.py"
 MONGO_URI="mongodb://127.0.0.1:27018/" # URI que utiliza el port-forward local
+VENV_DIR="venv" # Usamos una ruta relativa por defecto
 
 echo "--- 1. Verificando Kubeconfig y permisos ---"
 
@@ -45,24 +64,29 @@ fi
 echo "--- 2. Instalando o actualizando dependencias del sistema (se requiere sudo) ---"
 # Se asume que el usuario está en una distribución basada en Debian/Ubuntu
 sudo apt update
-sudo apt install -y python3-pip python3-tk python3.12-venv || { echo "ERROR: Falló la instalación de paquetes. Deteniendo." ; exit 1; }
+# Aseguramos la instalación de python3-dev para compilaciones nativas si fueran necesarias.
+sudo apt install -y python3-pip python3-tk python3.12-venv python3-dev || { echo "ERROR: Falló la instalación de paquetes. Deteniendo." ; exit 1; }
 
 # ------------------------------------------------------------------------------
 # 3. CONFIGURACIÓN DEL ENTORNO VIRTUAL
 # ------------------------------------------------------------------------------
 
-VENV_DIR="venv"
-
 if [ ! -d "$VENV_DIR" ]; then
     echo "--- 3. Creando entorno virtual Python: $VENV_DIR ---"
-    python3 -m venv "$VENV_DIR"
+    python3 -m venv "$VENV_DIR" || { echo "ERROR: Falló la creación del entorno virtual." ; exit 1; }
 fi
 
 echo "--- 4. Activando entorno virtual e instalando pymongo ---"
-source "$VENV_DIR/bin/activate"
+# Activación del entorno virtual
+source "$VENV_DIR/bin/activate" || { echo "ERROR: No se pudo activar el entorno virtual." ; exit 1; }
 
-# Instalar la dependencia de pymongo. Se usa ==3.12.1 como pediste, aunque versiones más nuevas son comunes.
-pip install pymongo==3.12.1 || { echo "ERROR: Falló la instalación de pymongo. Deteniendo." ; deactivate; exit 1; }
+# Instalar la dependencia de pymongo.
+pip install --upgrade pip
+pip install pymongo==3.12.1 || { 
+    echo "ERROR: Falló la instalación de pymongo. Deteniendo." 
+    deactivate
+    exit 1 
+}
 
 # ------------------------------------------------------------------------------
 # 4. CONFIGURACIÓN KUBECTL Y PORT-FORWARD
@@ -74,13 +98,10 @@ echo "--- 5. Configurando KUBECONFIG y ejecutando Port-Forward ---"
 export KUBECONFIG="$KUBECONFIG_PATH"
 
 # Comando kubectl port-forward
-# Se ejecuta en segundo plano (&) para no bloquear la terminal.
-# Si el puerto local 27018 ya está en uso, esto fallará.
-# 'sleep 2' da tiempo a que el reenvío de puertos se establezca antes de ejecutar la app Python.
 kubectl port-forward svc/mongo-svc 27018:27017 -n ccoc &
 PORT_FORWARD_PID=$!
-echo "Port-Forward (PID: $PORT_FORWARD_PID) iniciado. Esperando 2 segundos..."
-sleep 2
+echo "Port-Forward (PID: $PORT_FORWARD_PID) iniciado. Esperando 5 segundos..."
+sleep 5
 
 # ------------------------------------------------------------------------------
 # 5. EJECUCIÓN DE LA APLICACIÓN PYTHON
@@ -88,8 +109,7 @@ sleep 2
 
 echo "--- 6. Ejecutando Mongo Explorer ---"
 
-# Ejecutar el script Python y pasar la URI como primer argumento ($MONGO_URI)
-# La aplicación Python se ejecutará y usará la URI pasada
+# Ejecutar el script Python con la URI pasada como argumento
 python3 "$PYTHON_SCRIPT" "$MONGO_URI"
 
 # ------------------------------------------------------------------------------

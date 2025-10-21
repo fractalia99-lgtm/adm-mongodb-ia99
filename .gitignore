@@ -1,0 +1,49 @@
+# Virtual environments
+venv/
+env/
+.virtualenv/
+
+# Python compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE and editor files
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+
+# Logs and databases
+*.log
+*.sql
+*.sqlite3
+
+# Runtime data
+*.pid
+*.lock
+
+# macOS specific
+*.swp
+
+# Kubernetes and deployment files (if applicable)
+*.yaml
+*.yml
+!kubeconfig.yaml  # Keep kubeconfig if explicitly needed, adjust path if different
+
+# Ignore OS-specific backup files
+*~
+
+# Ignore temporary files
+*.tmp
+*.bak
