@@ -180,6 +180,8 @@ class DataPanel(ttk.Frame):
         self.app = app_instance
         self.pack(fill='both', expand=True)
         self.create_widgets()
+        self.column_resize_start_x = None
+        self.resizing_column = None
 
     def create_widgets(self):
         filter_frame = ttk.Frame(self, padding="5", style='TFrame')
@@ -197,7 +199,7 @@ class DataPanel(ttk.Frame):
         table_frame.pack(fill='both', expand=True, padx=10, pady=5)
 
         self.canvas = tk.Canvas(table_frame, background='white', highlightthickness=0)
-        self.canvas.pack(side='left', fill='both', expand=True)
+        self.canvas.pack(side='top', fill='both', expand=True)
 
         self.data_tree = ttk.Treeview(self.canvas, show='headings', style='Separator.Treeview')
         self.data_tree_window = self.canvas.create_window((0, 0), window=self.data_tree, anchor='nw')
@@ -205,13 +207,19 @@ class DataPanel(ttk.Frame):
         self.data_tree.bind('<Motion>', self.on_motion)
         self.data_tree.bind('<Leave>', self.on_leave)
         self.data_tree.bind('<Configure>', self.update_canvas)
+        self.canvas.bind('<Configure>', self.update_canvas)
+
+        # Bindings for column resizing
+        self.data_tree.bind('<Button-1>', self.start_column_resize)
+        self.data_tree.bind('<B1-Motion>', self.resize_column)
+        self.data_tree.bind('<ButtonRelease-1>', self.stop_column_resize)
 
         v_scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.data_tree.yview)
         v_scrollbar.pack(side='right', fill='y')
         self.data_tree.configure(yscrollcommand=v_scrollbar.set)
 
-        h_scrollbar = ttk.Scrollbar(self, orient="horizontal", command=self.data_tree.xview)
-        h_scrollbar.pack(fill='x', padx=10)
+        h_scrollbar = ttk.Scrollbar(table_frame, orient="horizontal", command=self.data_tree.xview)
+        h_scrollbar.pack(side='bottom', fill='x')
         self.data_tree.configure(xscrollcommand=h_scrollbar.set)
 
         op_frame = ttk.Frame(self, padding="5", style='TFrame')
@@ -240,8 +248,9 @@ class DataPanel(ttk.Frame):
         self.horizontal_lines = []
 
     def update_canvas(self, event=None):
-        """Actualizar el tamaño del Treeview y dibujar líneas horizontales."""
+        """Actualizar el tamaño del Treeview para ocupar todo el canvas."""
         self.canvas.itemconfig(self.data_tree_window, width=self.canvas.winfo_width(), height=self.canvas.winfo_height())
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
         self.draw_horizontal_lines()
 
     def draw_horizontal_lines(self):
@@ -260,6 +269,29 @@ class DataPanel(ttk.Frame):
             y = i * row_height
             line = self.canvas.create_line(0, y, canvas_width, y, fill=StyleConfig.TABLE_SEPARATOR, width=1)
             self.horizontal_lines.append(line)
+
+    def start_column_resize(self, event):
+        """Iniciar el redimensionamiento de una columna al hacer clic en el borde del encabezado."""
+        region = self.data_tree.identify_region(event.x, event.y)
+        if region == 'separator':
+            self.resizing_column = self.data_tree.identify_column(event.x)
+            self.column_resize_start_x = event.x
+            self.data_tree.config(cursor="sb_h_double_arrow")
+
+    def resize_column(self, event):
+        """Ajustar el ancho de la columna mientras se arrastra el ratón."""
+        if self.resizing_column and self.column_resize_start_x is not None:
+            delta = event.x - self.column_resize_start_x
+            current_width = self.data_tree.column(self.resizing_column, 'width')
+            new_width = max(60, current_width + delta)  # Ancho mínimo de 60 píxeles
+            self.data_tree.column(self.resizing_column, width=new_width)
+            self.column_resize_start_x = event.x
+
+    def stop_column_resize(self, event):
+        """Finalizar el redimensionamiento de la columna."""
+        self.resizing_column = None
+        self.column_resize_start_x = None
+        self.data_tree.config(cursor="")
 
     def on_motion(self, event):
         """Handle mouse motion to highlight the row under the cursor."""
